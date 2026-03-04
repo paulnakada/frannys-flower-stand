@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Franny's Flower Stand",
+    "slug": "frannys-flower-stand",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.school-pages.frannyflowers"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "11ae681b-cf13-45fb-bd8e-ca16e2643e65"
+      }
+    }
+  }
+}
