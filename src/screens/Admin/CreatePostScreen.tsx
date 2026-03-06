@@ -1,223 +1,231 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
+  Alert,
   Image,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
-  Alert,
-  ActivityIndicator,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getIdToken } from 'firebase/auth';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
-import { createPost } from '../../services/postService';
-import { useAuth } from '../../hooks/useAuth';
-import { Button, Input } from '../../components/ui';
-import { theme } from '../../assets/theme';
+import { v4 as uuidv4 } from 'uuid';
+import { db, auth } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui';
+import { theme } from '../../theme';
 
 export default function CreatePostScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const [text, setText] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [isPosting, setIsPosting] = useState(false);
+  const [imageAspectRatio, setImageAspectRatio] = useState<number | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  const handlePickImage = async () => {
+  async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
-      allowsEditing: true,
-      aspect: [4, 3],
     });
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      const { uri, width, height } = result.assets[0];
+      setImageUri(uri);
+      setImageAspectRatio(width && height ? width / height : null);
     }
-  };
+  }
 
-  const handleCameraCapture = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera access is required to take photos.');
+  async function publishPost() {
+    if (!text.trim() && !imageUri) {
+      Alert.alert('Nothing to post', 'Add some text or a photo first.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.85,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-    if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
-    }
-  };
+    if (user?.role !== 'admin') return;
 
-  const adminId = user.role === 'admin' ? user.id : '';
-  const adminName = user.role === 'admin' ? user.displayName : 'Franny';
-
-  const handlePost = async () => {
-    if (!adminId || !text.trim()) return;
-    setIsPosting(true);
+    setIsPublishing(true);
     try {
-      await createPost(adminId, adminName, {
-        text: text.trim(),
-        imageUri: imageUri ?? undefined,
-      });
-      Alert.alert(
-        '🌸 Posted!',
-        'Your update has been shared with everyone.',
-        [{ text: 'Great!', onPress: () => navigation.goBack() }]
-      );
-    } catch (e: any) {
-      Alert.alert('Error posting', e.message);
-    } finally {
-      setIsPosting(false);
-    }
-  };
+      let imageUrl: string | undefined;
 
-  const canPost = text.trim().length > 0 && !isPosting;
+      if (imageUri) {
+        const filename = uuidv4();
+        const storagePath = `posts/${filename}`;
+        const bucket = 'franny-s-flower-stand.firebasestorage.app';
+        const idToken = await getIdToken(auth.currentUser!);
+        const uploadUrl =
+          `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o` +
+          `?uploadType=media&name=${encodeURIComponent(storagePath)}`;
+
+        const result = await FileSystem.uploadAsync(uploadUrl, imageUri, {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            'Content-Type': 'image/jpeg',
+          },
+        });
+
+        if (result.status < 200 || result.status >= 300) {
+          throw new Error(`Upload failed (${result.status}): ${result.body}`);
+        }
+
+        const { downloadTokens } = JSON.parse(result.body);
+        imageUrl =
+          `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/` +
+          `${encodeURIComponent(storagePath)}?alt=media&token=${downloadTokens}`;
+      }
+
+      await addDoc(collection(db, 'posts'), {
+        authorId: user.id,
+        authorName: user.displayName,
+        text: text.trim(),
+        ...(imageUrl ? { imageUrl, ...(imageAspectRatio ? { imageAspectRatio } : {}) } : {}),
+        likeCount: 0,
+        commentCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        isDeleted: false,
+      });
+
+      // Send push notifications in background — don't block or fail the post
+      sendNewPostNotification(text.trim()).catch(() => {});
+
+      Alert.alert('Posted!', 'Your bloom is live.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? String(err));
+    } finally {
+      setIsPublishing(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={88}
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header hint */}
-        <View style={styles.hint}>
-          <Ionicons name="flower-outline" size={16} color={theme.colors.primary} />
-          <Text style={styles.hintText}>
-            This post will be sent to all your followers with a push notification
-          </Text>
-        </View>
-
-        {/* Text input */}
-        <Input
-          label="Message"
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <TextInput
+          style={styles.textInput}
+          placeholder="What's blooming today? Share an update, a photo, or a note for your customers..."
+          placeholderTextColor={theme.colors.taupe}
           value={text}
           onChangeText={setText}
-          placeholder="What's blooming today? Share a fresh update with your flower fans…"
           multiline
-          numberOfLines={5}
+          autoFocus
         />
 
-        {/* Image preview */}
         {imageUri ? (
-          <View style={styles.imagePreviewWrapper}>
+          <View style={styles.imagePreviewContainer}>
             <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
             <TouchableOpacity
               style={styles.removeImageBtn}
               onPress={() => setImageUri(null)}
             >
-              <Ionicons name="close-circle" size={28} color={theme.colors.white} />
+              <Ionicons name="close-circle" size={28} color={theme.colors.error} />
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.imagePickerRow}>
-            <TouchableOpacity
-              style={styles.imagePickerBtn}
-              onPress={handlePickImage}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="images-outline" size={20} color={theme.colors.primary} />
-              <Text style={styles.imagePickerText}>Choose Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.imagePickerBtn}
-              onPress={handleCameraCapture}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="camera-outline" size={20} color={theme.colors.primary} />
-              <Text style={styles.imagePickerText}>Take Photo</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
+            <Ionicons name="image-outline" size={24} color={theme.colors.primary} />
+            <Text style={styles.addImageLabel}>Add a photo</Text>
+          </TouchableOpacity>
         )}
 
-        {/* Post button */}
         <Button
-          label={isPosting ? 'Posting…' : 'Publish Post'}
-          onPress={handlePost}
-          disabled={!canPost}
-          isLoading={isPosting}
-          style={styles.postButton}
-          icon={
-            !isPosting ? (
-              <Ionicons name="flower" size={18} color={theme.colors.white} />
-            ) : undefined
-          }
+          label="Publish Post"
+          onPress={publishPost}
+          isLoading={isPublishing}
+          disabled={!text.trim() && !imageUri}
+          style={styles.publishBtn}
         />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+async function sendNewPostNotification(postText: string) {
+  const snap = await getDocs(collection(db, 'pushTokens'));
+  const tokens = snap.docs.map(d => d.data().token as string).filter(Boolean);
+  console.log('[Push] tokens found:', tokens);
+  if (tokens.length === 0) return;
+
+  const body = postText.slice(0, 120) || 'Check out the latest update!';
+  const messages = tokens.map(token => ({
+    to: token,
+    title: "Franny's Flower Stand 🌸",
+    body,
+  }));
+
+  for (let i = 0; i < messages.length; i += 100) {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messages.slice(i, i + 100)),
+    });
+    const result = await response.json();
+    console.log('[Push] Expo API response:', JSON.stringify(result));
+  }
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: theme.colors.cream },
-  scroll: { flex: 1 },
-  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
-  hint: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.accentLight,
+  container: { flex: 1, backgroundColor: theme.colors.cream },
+  content: { padding: theme.spacing.md, flexGrow: 1 },
+  textInput: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.charcoal,
+    lineHeight: 26,
+    minHeight: 140,
+    textAlignVertical: 'top',
+    backgroundColor: theme.colors.inputBg,
     borderRadius: theme.radius.md,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.md,
   },
-  hintText: {
-    flex: 1,
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.charcoal,
-    lineHeight: 20,
-  },
-  imagePreviewWrapper: {
-    position: 'relative',
-    marginBottom: theme.spacing.lg,
+  addImageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
     borderRadius: theme.radius.md,
-    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  addImageLabel: {
+    fontFamily: theme.typography.fonts.bodyBold,
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.primary,
+  },
+  imagePreviewContainer: {
+    marginBottom: theme.spacing.md,
+    position: 'relative',
   },
   imagePreview: {
     width: '100%',
-    height: 220,
+    height: 240,
+    borderRadius: theme.radius.md,
     backgroundColor: theme.colors.sand,
   },
   removeImageBtn: {
     position: 'absolute',
     top: theme.spacing.sm,
     right: theme.spacing.sm,
-  },
-  imagePickerRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-  imagePickerBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.sm,
     backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.md,
-    borderWidth: 1.5,
-    borderColor: theme.colors.primary,
-    borderStyle: 'dashed',
+    borderRadius: theme.radius.round,
   },
-  imagePickerText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.primary,
-  },
-  postButton: {
-    marginTop: theme.spacing.md,
-  },
+  publishBtn: { marginTop: theme.spacing.md },
 });

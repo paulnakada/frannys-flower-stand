@@ -1,235 +1,152 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../hooks/useAuth';
-import { Button, Input } from '../../components/ui';
-import { theme } from '../../assets/theme';
-
-type Step = 'enter-email' | 'link-sent';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../services/firebase';
+import { ADMIN_EMAILS } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui';
+import { theme } from '../../theme';
 
 export default function AdminLoginScreen() {
   const navigation = useNavigation();
-  const { requestAdminLink } = useAuth();
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
-  const [step, setStep] = useState<Step>('enter-email');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRequestLink = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
+  // Dismiss the modal automatically once auth context confirms admin role
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigation.goBack();
+    }
+  }, [user]);
 
+  async function handleSignIn() {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!ADMIN_EMAILS.includes(trimmedEmail)) {
+      Alert.alert('Access denied', 'This email is not authorized for admin access.');
+      return;
+    }
     setIsLoading(true);
     try {
-      const result = await requestAdminLink(trimmed);
-
-      if (result === 'sent') {
-        setStep('link-sent');
-      } else {
-        // Email not in admin list — give a neutral message so we don't leak info
-        Alert.alert(
-          'Sign-in unavailable',
-          "That email address isn't set up for admin access. If you think this is a mistake, please try again or contact support.",
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (e: any) {
-      Alert.alert('Something went wrong', e.message ?? 'Please try again.');
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      // Navigation will happen via the useEffect above once auth state updates
+    } catch (err: any) {
+      const msg = friendlyAuthError(err.code);
+      Alert.alert('Sign-in failed', `${msg}\n\n(${err.code})`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Back button */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={20} color={theme.colors.charcoal} />
-          <Text style={styles.backText}>Back to feed</Text>
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.subtitle}>
+          Sign in to manage posts and comments for Franny's Flower Stand.
+        </Text>
 
-        {/* Logo */}
-        <View style={styles.logoArea}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="leaf" size={40} color={theme.colors.primary} />
-          </View>
-          <Text style={styles.title}>Admin Sign In</Text>
-          <Text style={styles.subtitle}>Franny's Flower Stand</Text>
+        <View style={styles.form}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="admin@example.com"
+            placeholderTextColor={theme.colors.taupe}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={theme.colors.taupe}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="password"
+          />
+          <Button
+            label="Sign In"
+            onPress={handleSignIn}
+            isLoading={isLoading}
+            disabled={!email.trim() || !password}
+            style={styles.signInBtn}
+          />
         </View>
-
-        {step === 'enter-email' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Enter your email</Text>
-            <Text style={styles.cardBody}>
-              If your email is on the approved admin list, we'll send you a
-              one-tap sign-in link — no password needed.
-            </Text>
-
-            <Input
-              label="Admin email address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="franny@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-
-            <Button
-              label="Send sign-in link"
-              onPress={handleRequestLink}
-              isLoading={isLoading}
-              disabled={!email.trim() || isLoading}
-              icon={
-                !isLoading ? (
-                  <Ionicons name="mail-outline" size={18} color={theme.colors.white} />
-                ) : undefined
-              }
-            />
-          </View>
-        ) : (
-          <View style={styles.card}>
-            {/* Link sent confirmation */}
-            <View style={styles.sentIcon}>
-              <Ionicons name="checkmark-circle" size={52} color={theme.colors.primary} />
-            </View>
-            <Text style={styles.cardTitle}>Check your email</Text>
-            <Text style={styles.cardBody}>
-              A sign-in link has been sent to{'\n'}
-              <Text style={styles.emailHighlight}>{email}</Text>
-            </Text>
-            <Text style={styles.cardBodySmall}>
-              Open the email on this device and tap the link — you'll be signed
-              in automatically. The link expires in 1 hour.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.resendRow}
-              onPress={() => {
-                setStep('enter-email');
-                setEmail('');
-              }}
-            >
-              <Text style={styles.resendText}>Use a different email</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+function friendlyAuthError(code: string): string {
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Incorrect email or password.';
+    case 'auth/invalid-email':
+      return 'That doesn\'t look like a valid email address.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled.';
+    case 'auth/operation-not-allowed':
+      return 'Email/password sign-in is not enabled. Enable it in the Firebase Console under Authentication → Sign-in method.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your connection and try again.';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts. Try again later.';
+    default:
+      return 'Sign-in failed. Please try again.';
+  }
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: theme.colors.cream },
+  container: { flex: 1, backgroundColor: theme.colors.cream },
   content: {
+    padding: theme.spacing.xl,
+    paddingTop: theme.spacing.xxl,
     flexGrow: 1,
-    padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxxl,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: theme.spacing.xl,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.charcoal,
-  },
-  logoArea: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  logoCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: theme.colors.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: theme.spacing.md,
-    borderWidth: 2,
-    borderColor: theme.colors.accent,
-  },
-  title: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xxl,
-    color: theme.colors.charcoal,
   },
   subtitle: {
     fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.warmGray,
-    marginTop: 4,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  card: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...theme.shadows.card,
-  },
-  sentIcon: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  cardTitle: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xl,
-    color: theme.colors.charcoal,
-    marginBottom: theme.spacing.sm,
-  },
-  cardBody: {
-    fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.base,
     color: theme.colors.warmGray,
+    marginBottom: theme.spacing.xl,
     lineHeight: 22,
-    marginBottom: theme.spacing.lg,
-    textAlign: 'center',
   },
-  cardBodySmall: {
+  form: { gap: theme.spacing.sm },
+  label: {
+    fontFamily: theme.typography.fonts.bodyBold,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.charcoal,
+    marginBottom: 2,
+    marginTop: theme.spacing.sm,
+  },
+  input: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm + 4,
     fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.warmGray,
-    lineHeight: 20,
-    marginBottom: theme.spacing.lg,
-    textAlign: 'center',
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.charcoal,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  emailHighlight: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    color: theme.colors.primary,
-  },
-  resendRow: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-  },
-  resendText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.primary,
-  },
+  signInBtn: { marginTop: theme.spacing.lg },
 });

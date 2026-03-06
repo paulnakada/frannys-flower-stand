@@ -1,275 +1,225 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../hooks/useAuth';
-import { theme } from '../../assets/theme';
+import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/ui';
+import { RootStackParamList } from '../../types';
+import { theme } from '../../theme';
+
+type RootNavProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
-  const navigation = useNavigation<any>();
-  const { user, isAdmin, logoutAdmin, setDisplayName, clearDisplayName } = useAuth();
+  const navigation = useNavigation<RootNavProp>();
+  const { user, signOut, setAnonDisplayName } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(user.displayName);
+  const [nameInput, setNameInput] = useState(user?.displayName ?? '');
 
-  const handleSaveName = async () => {
-    if (!nameInput.trim()) return;
-    await setDisplayName(nameInput.trim());
+  async function saveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      Alert.alert('Name required', 'Please enter a display name.');
+      return;
+    }
+    await setAnonDisplayName(trimmed);
     setEditingName(false);
-  };
+  }
 
-  const handleClearName = () => {
-    Alert.alert('Clear name', 'This will remove your saved name. You'll be asked again next time you comment.', [
+  async function handleSignOut() {
+    Alert.alert('Sign out', 'Are you sure you want to sign out of admin?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: async () => {
-        await clearDisplayName();
-        setNameInput('');
-      }},
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
-  };
-
-  const handleAdminLogout = () => {
-    Alert.alert('Sign out', 'Sign out from admin?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logoutAdmin },
-    ]);
-  };
+  }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>Profile</Text>
-
-      {/* Identity card */}
-      <View style={styles.card}>
-        <View style={styles.avatarRow}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Avatar */}
+        <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            {isAdmin
-              ? <Ionicons name="leaf" size={36} color={theme.colors.primary} />
-              : <Ionicons name="flower-outline" size={36} color={theme.colors.accent} />
-            }
+            <Ionicons
+              name={isAdmin ? 'shield-checkmark' : 'person'}
+              size={40}
+              color={isAdmin ? theme.colors.primary : theme.colors.warmGray}
+            />
           </View>
-          <View style={styles.avatarMeta}>
-            {isAdmin && user.role === 'admin' ? (
-              <>
-                <Text style={styles.name}>{user.displayName}</Text>
-                <View style={styles.adminBadge}>
-                  <Ionicons name="leaf" size={11} color={theme.colors.white} />
-                  <Text style={styles.adminBadgeText}>Admin</Text>
-                </View>
-                <Text style={styles.email}>{user.email}</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.name}>
-                  {user.displayName || 'Guest visitor'}
-                </Text>
-                <Text style={styles.roleLabel}>Flower fan 🌸</Text>
-              </>
-            )}
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeText}>{isAdmin ? 'Admin' : 'Guest'}</Text>
           </View>
         </View>
-      </View>
 
-      {/* Anon name editor */}
-      {!isAdmin && (
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Your display name</Text>
-          <Text style={styles.sectionHint}>
-            Used when you leave comments. Remembered on this device.
-          </Text>
-          {editingName ? (
+        {/* Name */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Display Name</Text>
+          {editingName && !isAdmin ? (
             <View style={styles.nameEditRow}>
               <TextInput
-                style={styles.nameInput}
+                style={[styles.input, styles.nameInput]}
                 value={nameInput}
                 onChangeText={setNameInput}
-                placeholder="Enter your name"
-                placeholderTextColor={theme.colors.taupe}
                 autoFocus
-                maxLength={40}
+                returnKeyType="done"
+                onSubmitEditing={saveName}
               />
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveName}>
-                <Text style={styles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
+              <Button label="Save" onPress={saveName} style={styles.saveBtn} />
             </View>
           ) : (
-            <View style={styles.nameDisplayRow}>
-              <Text style={styles.nameDisplay}>
-                {user.displayName || 'Not set'}
-              </Text>
-              <TouchableOpacity onPress={() => { setNameInput(user.displayName); setEditingName(true); }}>
-                <Text style={styles.editLink}>Edit</Text>
-              </TouchableOpacity>
+            <View style={styles.nameRow}>
+              <Text style={styles.nameText}>{user?.displayName || 'Not set'}</Text>
+              {!isAdmin && (
+                <Button
+                  label="Edit"
+                  onPress={() => setEditingName(true)}
+                  variant="ghost"
+                  style={styles.editBtn}
+                />
+              )}
             </View>
           )}
-          {user.displayName ? (
-            <TouchableOpacity onPress={handleClearName} style={styles.clearRow}>
-              <Text style={styles.clearText}>Clear saved name</Text>
-            </TouchableOpacity>
-          ) : null}
+          {!isAdmin && (
+            <Text style={styles.hint}>
+              Your name is shown on comments you post.
+            </Text>
+          )}
         </View>
-      )}
 
-      {/* Admin: sign-out */}
-      {isAdmin && (
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleAdminLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
-          <Text style={styles.signOutText}>Sign Out (Admin)</Text>
-        </TouchableOpacity>
-      )}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Email</Text>
+            <Text style={styles.nameText}>{(user as any).email}</Text>
+          </View>
+        )}
 
-      {/* Non-admin: go to admin login */}
-      {!isAdmin && (
-        <TouchableOpacity
-          style={styles.adminLinkBtn}
-          onPress={() => navigation.navigate('AdminLogin')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="leaf-outline" size={18} color={theme.colors.warmGray} />
-          <Text style={styles.adminLinkText}>Admin sign in</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+        {/* Actions */}
+        <View style={styles.actionsSection}>
+          {isAdmin ? (
+            <Button label="Sign Out" onPress={handleSignOut} variant="secondary" />
+          ) : (
+            <Button
+              label="Admin Sign In"
+              onPress={() => navigation.navigate('AdminLogin')}
+              variant="secondary"
+            />
+          )}
+        </View>
+
+        {/* App info */}
+        <View style={styles.footer}>
+          <Ionicons name="flower" size={20} color={theme.colors.accent} />
+          <Text style={styles.footerText}>Franny's Flower Stand</Text>
+          <Text style={styles.version}>v1.0.0</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: theme.colors.cream },
+  container: { flex: 1, backgroundColor: theme.colors.cream },
   content: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xxxl },
-  pageTitle: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xxl,
-    color: theme.colors.charcoal,
-    marginBottom: theme.spacing.lg,
+  avatarContainer: {
+    alignItems: 'center',
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   },
-  card: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-    ...theme.shadows.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
   avatar: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 96,
+    height: 96,
+    borderRadius: theme.radius.round,
     backgroundColor: theme.colors.accentLight,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: theme.colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarMeta: { flex: 1 },
-  name: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xl,
-    color: theme.colors.charcoal,
-    marginBottom: 4,
+  roleBadge: {
+    marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.sand,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.round,
   },
-  email: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.warmGray,
-    marginTop: 4,
-  },
-  roleLabel: {
-    fontFamily: theme.typography.fonts.body,
+  roleBadgeText: {
+    fontFamily: theme.typography.fonts.bodyBold,
     fontSize: theme.typography.sizes.sm,
     color: theme.colors.warmGray,
   },
-  adminBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.round,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-  },
-  adminBadgeText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.white,
+  section: {
+    marginBottom: theme.spacing.xl,
   },
   sectionLabel: {
-    fontFamily: theme.typography.fonts.bodyMedium,
+    fontFamily: theme.typography.fonts.bodyBold,
     fontSize: theme.typography.sizes.sm,
-    color: theme.colors.charcoal,
-    marginBottom: 4,
-  },
-  sectionHint: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.xs,
     color: theme.colors.warmGray,
-    marginBottom: theme.spacing.md,
-    lineHeight: 18,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: theme.spacing.sm,
   },
-  nameEditRow: { flexDirection: 'row', gap: theme.spacing.sm, alignItems: 'center' },
-  nameInput: {
-    flex: 1,
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  nameText: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.charcoal,
+  },
+  nameEditRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  input: {
     backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
+    paddingVertical: theme.spacing.sm + 4,
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.base,
     color: theme.colors.charcoal,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  saveBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-  },
-  saveBtnText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.white,
-  },
-  nameDisplayRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  nameDisplay: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.charcoal,
-  },
-  editLink: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.primary,
-  },
-  clearRow: { marginTop: theme.spacing.sm },
-  clearText: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.error,
-  },
-  signOutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    borderWidth: 1.5,
-    borderColor: theme.colors.error,
-    marginTop: theme.spacing.sm,
-  },
-  signOutText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.error,
-  },
-  adminLinkBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  adminLinkText: {
+  nameInput: { flex: 1 },
+  saveBtn: { paddingHorizontal: theme.spacing.md },
+  editBtn: { paddingVertical: 0 },
+  hint: {
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.sm,
     color: theme.colors.warmGray,
+    marginTop: theme.spacing.xs,
+  },
+  actionsSection: {
+    marginTop: theme.spacing.md,
+  },
+  footer: {
+    marginTop: theme.spacing.xxxl,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  footerText: {
+    fontFamily: theme.typography.fonts.displayItalic,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.charcoal,
+  },
+  version: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.taupe,
   },
 });

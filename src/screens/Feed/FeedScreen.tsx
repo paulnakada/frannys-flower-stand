@@ -1,65 +1,33 @@
 import React from 'react';
 import {
-  FlatList,
-  View,
-  Text,
-  StyleSheet,
   ActivityIndicator,
+  FlatList,
   RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useFeed } from '../../hooks/useFeed';
 import { PostCard } from '../../components/PostCard';
-import { theme } from '../../assets/theme';
-import { FeedStackParamList } from '../../types';
+import { EmptyState } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
+import { FeedStackParamList, RootStackParamList } from '../../types';
+import { theme } from '../../theme';
 
 type FeedNavProp = NativeStackNavigationProp<FeedStackParamList, 'FeedHome'>;
-
-const FeedHeader = () => (
-  <View style={styles.header}>
-    <Ionicons name="flower" size={22} color={theme.colors.accent} />
-    <Text style={styles.headerTitle}>Today's Blooms</Text>
-    <Ionicons name="flower" size={22} color={theme.colors.accent} />
-  </View>
-);
-
-const EmptyFeed = () => (
-  <View style={styles.emptyState}>
-    <Text style={styles.emptyIcon}>🌸</Text>
-    <Text style={styles.emptyTitle}>Nothing blooming yet</Text>
-    <Text style={styles.emptySubtitle}>
-      Check back soon for fresh updates from Franny!
-    </Text>
-  </View>
-);
-
-const FooterLoader = ({ isLoading }: { isLoading: boolean }) => {
-  if (!isLoading) return <View style={styles.listFooter} />;
-  return (
-    <View style={styles.footerLoader}>
-      <ActivityIndicator color={theme.colors.primary} size="small" />
-    </View>
-  );
-};
+type RootNavProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FeedScreen() {
-  const navigation = useNavigation<FeedNavProp>();
-  const {
-    posts,
-    likedPostIds,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    loadMore,
-    refresh,
-    handleToggleLike,
-  } = useFeed();
+  const feedNav = useNavigation<FeedNavProp>();
+  const rootNav = useNavigation<RootNavProp>();
+  const { user } = useAuth();
+  const { posts, likedPostIds, isLoading, isLoadingMore, hasMore, loadMore, refresh, handleToggleLike } = useFeed();
 
-  const handlePostPress = (postId: string) => {
-    navigation.navigate('PostDetail', { postId });
-  };
+  const handlePostPress = (postId: string) => feedNav.navigate('PostDetail', { postId });
 
   if (isLoading) {
     return (
@@ -84,9 +52,36 @@ export default function FeedScreen() {
           onCommentPress={handlePostPress}
         />
       )}
-      ListHeaderComponent={<FeedHeader />}
-      ListEmptyComponent={<EmptyFeed />}
-      ListFooterComponent={<FooterLoader isLoading={isLoadingMore} />}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <View style={styles.headerTitle}>
+            <Ionicons name="flower" size={20} color={theme.colors.accent} />
+            <Text style={styles.headerText}>Today's Blooms</Text>
+            <Ionicons name="flower" size={20} color={theme.colors.accent} />
+          </View>
+          {user?.role !== 'admin' && (
+            <TouchableOpacity style={styles.loginBtn} onPress={() => rootNav.navigate('AdminLogin')}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.warmGray} />
+            </TouchableOpacity>
+          )}
+        </View>
+      }
+      ListEmptyComponent={
+        <EmptyState
+          icon="🌸"
+          title="Nothing blooming yet"
+          subtitle="Check back soon for fresh updates from Franny!"
+        />
+      }
+      ListFooterComponent={
+        isLoadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator color={theme.colors.primary} size="small" />
+          </View>
+        ) : (
+          <View style={styles.listFooter} />
+        )
+      }
       onEndReached={hasMore ? loadMore : undefined}
       onEndReachedThreshold={0.4}
       refreshControl={
@@ -103,55 +98,34 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: {
-    flex: 1,
-    backgroundColor: theme.colors.cream,
-  },
-  content: {
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xxxl,
-  },
+  list: { flex: 1, backgroundColor: theme.colors.cream },
+  content: { paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.xxxl },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.cream },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
   headerTitle: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+  },
+  headerText: {
     fontFamily: theme.typography.fonts.displayItalic,
     fontSize: theme.typography.sizes.xl,
     color: theme.colors.charcoal,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: theme.spacing.xxxl,
-    paddingHorizontal: theme.spacing.xl,
+  loginBtn: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    padding: theme.spacing.xs,
   },
-  emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
-  emptyTitle: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xl,
-    color: theme.colors.charcoal,
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.warmGray,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.cream,
-  },
-  footerLoader: {
-    paddingVertical: theme.spacing.lg,
-    alignItems: 'center',
-  },
+  footerLoader: { paddingVertical: theme.spacing.lg, alignItems: 'center' },
   listFooter: { height: theme.spacing.xl },
 });

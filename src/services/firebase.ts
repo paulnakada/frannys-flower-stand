@@ -1,64 +1,43 @@
-/**
- * firebase.ts
- *
- * Central Firebase initialization.
- * Replace the config values below with your own from the Firebase Console:
- *   https://console.firebase.google.com → Project Settings → Your apps
- *
- * Required Firebase services:
- *   - Authentication  (Email/Password enabled)
- *   - Cloud Firestore
- *   - Cloud Storage
- *   - Cloud Functions  (for push notifications)
- *   - Cloud Messaging  (FCM)
- */
-
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyC70w7nGWsqiAp6cdXzNBTBX55dNl0JZmo',
+  authDomain: 'franny-s-flower-stand.firebaseapp.com',
+  projectId: 'franny-s-flower-stand',
+  storageBucket: 'franny-s-flower-stand.firebasestorage.app',
+  messagingSenderId: '224786983858',
+  appId: '1:224786983858:web:d37fc24d266d49cb8412ab',
 };
 
-// Prevent re-initialization in development hot-reload
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const isFirstInit = getApps().length === 0;
+const app = isFirstInit ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
+export const auth = isFirstInit
+  ? initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })
+  : getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 export default app;
 
 /**
- * Firestore Collections Reference
- * ─────────────────────────────────────────────────────────────────────────────
+ * Firestore schema:
  *
- *  /users/{userId}
- *    - id, displayName, email, avatarUrl, role, fcmToken, createdAt, isActive
+ * /users/{uid}
+ *   id, displayName, email, role, fcmToken?, createdAt, isActive
  *
- *  /posts/{postId}
- *    - id, authorId, text, imageUrl, imageAspectRatio,
- *      likeCount, commentCount, createdAt, updatedAt, isDeleted
+ * /posts/{postId}
+ *   id, authorId, authorName, text, imageUrl?, imageAspectRatio?,
+ *   likeCount, commentCount, createdAt, updatedAt, isDeleted
  *
- *  /posts/{postId}/likes/{userId}
- *    - id, postId, userId, createdAt
- *    (userId as doc ID allows fast "did I like this?" lookups)
+ * /posts/{postId}/likes/{deviceId}
+ *   id, postId, deviceId, createdAt
  *
- *  /posts/{postId}/comments/{commentId}
- *    - id, postId, authorId, text, imageUrl, imageAspectRatio,
- *      status ('pending'|'approved'|'rejected'), createdAt, updatedAt, isDeleted
- *
- * Security Rules summary (see firestore.rules):
- *   - Only authenticated users can read posts & approved comments
- *   - Only admin (role == 'admin') can create posts
- *   - Any authenticated user can create comments (status auto-set to 'pending')
- *   - Only admin can update comment status
- *   - Likes can be written/deleted by the owning user only
+ * /posts/{postId}/comments/{commentId}
+ *   id, postId, authorName, text, imageUrl?, imageAspectRatio?,
+ *   status ('pending'|'approved'|'rejected'), createdAt, updatedAt, isDeleted
  */

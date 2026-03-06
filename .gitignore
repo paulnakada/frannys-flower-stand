@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# Claude
+.claude/
+
+# Firebase credentials — NEVER commit these
+google-services.json
+*firebase-adminsdk*.json
+*.serviceAccount.json
+
+# EAS / local build artifacts
+*.bat
+android/
+ios/
+
+# Misc
+*.log
+.DS_Store

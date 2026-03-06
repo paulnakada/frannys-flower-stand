@@ -1,13 +1,9 @@
-// ─── User Types ────────────────────────────────────────────────────────────
+// ─── User ────────────────────────────────────────────────────────────────────
 
 export type UserRole = 'admin' | 'anonymous';
 
-/**
- * AdminUser — authenticated via Firebase Email Link (magic link).
- * Stored in Firestore /users/{uid}.
- */
 export interface AdminUser {
-  id: string;           // Firebase UID
+  id: string;
   displayName: string;
   email: string;
   role: 'admin';
@@ -16,51 +12,51 @@ export interface AdminUser {
   isActive: boolean;
 }
 
-/**
- * AnonUser — never touches Firebase Auth.
- * Display name is stored in device AsyncStorage only.
- */
 export interface AnonUser {
   role: 'anonymous';
-  displayName: string;  // entered by user, persisted locally
+  displayName: string; // persisted in AsyncStorage only
 }
 
 export type AppUser = AdminUser | AnonUser;
 
-// ─── Post Types ─────────────────────────────────────────────────────────────
+export const ADMIN_EMAILS: readonly string[] = [
+  'paulnakada@yahoo.com',
+  'christine_hoang@yahoo.com',
+];
+
+// ─── Post ────────────────────────────────────────────────────────────────────
 
 export interface Post {
   id: string;
-  authorId: string;           // Always admin UID
-  authorName: string;         // Denormalized for display
+  authorId: string;
+  authorName: string;
   text: string;
   imageUrl?: string;
   imageAspectRatio?: number;
   likeCount: number;
-  commentCount: number;       // approved comments only
+  commentCount: number; // approved only
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
 }
 
-// ─── Like Types ──────────────────────────────────────────────────────────────
+// ─── Like ────────────────────────────────────────────────────────────────────
 
 export interface Like {
   id: string;
   postId: string;
-  // For anonymous users, we use a device-generated UUID stored in AsyncStorage
-  deviceId: string;
+  deviceId: string; // device UUID stored in AsyncStorage
   createdAt: Date;
 }
 
-// ─── Comment Types ───────────────────────────────────────────────────────────
+// ─── Comment ─────────────────────────────────────────────────────────────────
 
 export type CommentStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Comment {
   id: string;
   postId: string;
-  authorName: string;         // Entered by user at comment time, stored in doc
+  authorName: string;
   text: string;
   imageUrl?: string;
   imageAspectRatio?: number;
@@ -70,16 +66,16 @@ export interface Comment {
   isDeleted: boolean;
 }
 
-// ─── Navigation Types ────────────────────────────────────────────────────────
+// ─── Navigation ───────────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
   Main: undefined;
-  AdminLogin: undefined;    // accessible from feed header, no auth gate on root
+  AdminLogin: undefined;
 };
 
 export type MainTabParamList = {
   Feed: undefined;
-  AdminDashboard: undefined;  // only visible when admin is signed in
+  Admin: undefined;
   Profile: undefined;
 };
 
@@ -95,20 +91,13 @@ export type AdminStackParamList = {
   PostDetail: { postId: string };
 };
 
-// ─── API / Service Types ─────────────────────────────────────────────────────
+// ─── Misc ─────────────────────────────────────────────────────────────────────
 
 export interface PaginatedResult<T> {
   data: T[];
   lastDocumentId?: string;
   hasMore: boolean;
 }
-
-export interface ApiError {
-  code: string;
-  message: string;
-}
-
-// ─── Form Types ──────────────────────────────────────────────────────────────
 
 export interface CreatePostForm {
   text: string;
@@ -120,22 +109,3 @@ export interface CreateCommentForm {
   text: string;
   imageUri?: string;
 }
-
-// ─── Notification Types ──────────────────────────────────────────────────────
-
-export type NotificationType = 'new_post';
-
-export interface PushNotificationPayload {
-  type: NotificationType;
-  postId: string;
-  title: string;
-  body: string;
-}
-
-// ─── Admin Auth Config ───────────────────────────────────────────────────────
-
-/** Hardcoded list of email addresses that are permitted admin access */
-export const ADMIN_EMAILS: readonly string[] = [
-  'franny@frannyflowers.com',  // 🌸 Replace with real admin email(s)
-];
-

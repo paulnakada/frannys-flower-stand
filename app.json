@@ -3,13 +3,37 @@
     "name": "Franny's Flower Stand",
     "slug": "frannys-flower-stand",
     "version": "1.0.0",
-    "android": {
-      "package": "com.school-pages.frannyflowers"
+    "orientation": "portrait",
+    "scheme": "frannysflower",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.schoolpages.frannysflower"
     },
+    "android": {
+      "package": "com.schoolpages.frannysflower",
+      "adaptiveIcon": {
+        "backgroundColor": "#FBF7F2"
+      },
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Franny's Flower Stand to access your photos.",
+          "cameraPermission": "Allow Franny's Flower Stand to access your camera."
+        }
+      ],
+      "expo-notifications",
+      "expo-font"
+    ],
     "extra": {
       "eas": {
         "projectId": "11ae681b-cf13-45fb-bd8e-ca16e2643e65"
       }
-    }
+    },
+    "platforms": ["ios", "android"]
   }
 }

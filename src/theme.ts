@@ -1,27 +1,23 @@
 export const theme = {
   colors: {
-    // Primary palette - botanical fresh
-    primary: '#5A8F5A',        // sage green
-    primaryLight: '#7FB87F',   // light sage
-    primaryDark: '#3D6B3D',    // deep green
-    accent: '#E8A0B4',         // soft petal pink
-    accentDark: '#D4708A',     // deeper rose
-    accentLight: '#F5D0DC',    // blush
+    primary: '#5A8F5A',
+    primaryLight: '#7FB87F',
+    primaryDark: '#3D6B3D',
+    accent: '#E8A0B4',
+    accentDark: '#D4708A',
+    accentLight: '#F5D0DC',
 
-    // Neutrals
-    cream: '#FBF7F2',          // warm off-white background
+    cream: '#FBF7F2',
     white: '#FFFFFF',
-    sand: '#F0E8DC',           // warm sand
-    taupe: '#C4B8A8',          // warm grey
-    warmGray: '#8A7F74',       // text secondary
-    charcoal: '#3A3530',       // text primary
+    sand: '#F0E8DC',
+    taupe: '#C4B8A8',
+    warmGray: '#8A7F74',
+    charcoal: '#3A3530',
 
-    // Feedback
     success: '#5A8F5A',
     error: '#D45B5B',
     warning: '#D4A455',
 
-    // UI
     border: '#E8DDD0',
     cardBg: '#FFFFFF',
     inputBg: '#F5F0EA',
@@ -31,12 +27,11 @@ export const theme = {
 
   typography: {
     fonts: {
-      // Use Google Fonts via expo-google-fonts
-      display: 'Playfair_Display_700Bold',
-      displayItalic: 'Playfair_Display_700Bold_Italic',
-      displayRegular: 'Playfair_Display_400Regular',
+      display: 'PlayfairDisplay_700Bold',
+      displayItalic: 'PlayfairDisplay_700Bold_Italic',
+      displayRegular: 'PlayfairDisplay_400Regular',
       body: 'Lato_400Regular',
-      bodyMedium: 'Lato_700Bold',
+      bodyBold: 'Lato_700Bold',
       bodyLight: 'Lato_300Light',
     },
     sizes: {
@@ -48,11 +43,6 @@ export const theme = {
       xl: 24,
       xxl: 30,
       xxxl: 38,
-    },
-    lineHeights: {
-      tight: 1.2,
-      normal: 1.5,
-      relaxed: 1.7,
     },
   },
 
@@ -88,13 +78,6 @@ export const theme = {
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 5,
-    },
-    modal: {
-      shadowColor: '#3A3530',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.18,
-      shadowRadius: 24,
-      elevation: 10,
     },
   },
 };

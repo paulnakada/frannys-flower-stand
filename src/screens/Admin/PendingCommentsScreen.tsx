@@ -1,74 +1,112 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
   ActivityIndicator,
   Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { Comment } from '../../types';
 import {
-  subscribeToPendingComments,
-  approveComment,
-  rejectComment,
-} from '../../services/commentService';
-import { getPost } from '../../services/postService';
+  collection,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+  serverTimestamp,
+  increment,
+} from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { Comment } from '../../types';
 import { CommentItem } from '../../components/CommentItem';
-import { theme } from '../../assets/theme';
+import { EmptyState } from '../../components/ui';
+import { theme } from '../../theme';
+
+interface PendingComment extends Comment {
+  postId: string;
+}
 
 export default function PendingCommentsScreen() {
-  const navigation = useNavigation<any>();
-  const [pendingComments, setPendingComments] = useState<
-    Array<Comment & { postId: string; postText?: string }>
-  >([]);
+  const [comments, setComments] = useState<PendingComment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = subscribeToPendingComments(async comments => {
-      // Fetch post titles for context
-      const withPostTitles = await Promise.all(
-        comments.map(async c => {
-          const post = await getPost(c.postId);
-          return { ...c, postText: post?.text };
-        })
-      );
-      setPendingComments(withPostTitles);
-      setIsLoading(false);
-    });
-    return unsubscribe;
+    loadPendingComments();
   }, []);
 
-  const handleApprove = async (postId: string, commentId: string) => {
-    try {
-      await approveComment(postId, commentId);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
-  };
+  async function loadPendingComments() {
+    setIsLoading(true);
+    const postsSnap = await getDocs(query(collection(db, 'posts'), where('isDeleted', '==', false)));
+    const all: PendingComment[] = [];
 
-  const handleReject = (postId: string, commentId: string) => {
-    Alert.alert(
-      'Reject Comment',
-      'This comment will be hidden and the user will not be notified.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await rejectComment(postId, commentId);
-            } catch (e: any) {
-              Alert.alert('Error', e.message);
-            }
-          },
-        },
-      ]
-    );
-  };
+    await Promise.all(postsSnap.docs.map(async (postDoc) => {
+      const q = query(
+        collection(db, 'posts', postDoc.id, 'comments'),
+        where('status', '==', 'pending'),
+        where('isDeleted', '==', false),
+      );
+      const snap = await getDocs(q);
+      snap.docs.forEach(d => {
+        const data = d.data();
+        all.push({
+          id: d.id,
+          postId: postDoc.id,
+          authorName: data.authorName ?? 'Anonymous',
+          text: data.text ?? '',
+          imageUrl: data.imageUrl,
+          imageAspectRatio: data.imageAspectRatio,
+          status: 'pending',
+          createdAt: data.createdAt?.toDate() ?? new Date(),
+          updatedAt: data.updatedAt?.toDate() ?? new Date(),
+          isDeleted: false,
+        });
+      });
+    }));
+
+    all.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    setComments(all);
+    setIsLoading(false);
+  }
+
+  async function handleApprove(commentId: string) {
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment) return;
+
+    setComments(prev => prev.filter(c => c.id !== commentId));
+
+    try {
+      await updateDoc(doc(db, 'posts', comment.postId, 'comments', commentId), {
+        status: 'approved',
+        updatedAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, 'posts', comment.postId), {
+        commentCount: increment(1),
+        updatedAt: serverTimestamp(),
+      });
+    } catch {
+      Alert.alert('Error', 'Could not approve comment. Please refresh and try again.');
+      loadPendingComments();
+    }
+  }
+
+  async function handleReject(commentId: string) {
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment) return;
+
+    setComments(prev => prev.filter(c => c.id !== commentId));
+
+    try {
+      await updateDoc(doc(db, 'posts', comment.postId, 'comments', commentId), {
+        status: 'rejected',
+        updatedAt: serverTimestamp(),
+      });
+    } catch {
+      Alert.alert('Error', 'Could not reject comment. Please refresh and try again.');
+      loadPendingComments();
+    }
+  }
 
   if (isLoading) {
     return (
@@ -82,40 +120,34 @@ export default function PendingCommentsScreen() {
     <FlatList
       style={styles.list}
       contentContainerStyle={styles.content}
-      data={pendingComments}
+      data={comments}
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
         <CommentItem
           comment={item}
           isAdmin
-          onApprove={id => handleApprove(item.postId, id)}
-          onReject={id => handleReject(item.postId, id)}
-          showPostLink
-          postTitle={item.postText ? `"${item.postText.substring(0, 60)}…"` : undefined}
-          onPostPress={() =>
-            navigation.navigate('PostDetail', { postId: item.postId })
-          }
+          onApprove={handleApprove}
+          onReject={handleReject}
         />
       )}
-      ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>✅</Text>
-          <Text style={styles.emptyTitle}>All caught up!</Text>
-          <Text style={styles.emptySubtitle}>
-            No comments waiting for review.
-          </Text>
-        </View>
-      }
       ListHeaderComponent={
-        pendingComments.length > 0 ? (
-          <View style={styles.listHeader}>
-            <Ionicons name="time-outline" size={16} color={theme.colors.warning} />
-            <Text style={styles.listHeaderText}>
-              {pendingComments.length} comment
-              {pendingComments.length !== 1 ? 's' : ''} waiting for your review
-            </Text>
-          </View>
+        comments.length > 0 ? (
+          <Text style={styles.countLabel}>{comments.length} pending</Text>
         ) : null
+      }
+      ListEmptyComponent={
+        <EmptyState
+          icon="✅"
+          title="All caught up!"
+          subtitle="No comments waiting for review."
+        />
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={isLoading}
+          onRefresh={loadPendingComments}
+          tintColor={theme.colors.primary}
+        />
       }
       showsVerticalScrollIndicator={false}
     />
@@ -125,37 +157,11 @@ export default function PendingCommentsScreen() {
 const styles = StyleSheet.create({
   list: { flex: 1, backgroundColor: theme.colors.cream },
   content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.pendingBadge,
-  },
-  listHeaderText: {
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.cream },
+  countLabel: {
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.sm,
-    color: theme.colors.charcoal,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: theme.spacing.xxxl,
-  },
-  emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
-  emptyTitle: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xl,
-    color: theme.colors.charcoal,
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.base,
     color: theme.colors.warmGray,
+    marginBottom: theme.spacing.md,
   },
 });

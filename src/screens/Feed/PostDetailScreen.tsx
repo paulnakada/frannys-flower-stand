@@ -1,179 +1,163 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
+  ActivityIndicator,
+  FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
-  Image,
-  TouchableOpacity,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
   Alert,
-  ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  where,
+} from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-import { FeedStackParamList, Post, Comment } from '../../types';
-import { getPost, toggleLike, getDeviceLikedPosts } from '../../services/postService';
-import { createComment, subscribeToApprovedComments } from '../../services/commentService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { v4 as uuidv4 } from 'uuid';
+import { db, storage } from '../../services/firebase';
+import { Comment, FeedStackParamList, Post } from '../../types';
 import { CommentItem } from '../../components/CommentItem';
-import { useAuth } from '../../hooks/useAuth';
-import { theme } from '../../assets/theme';
+import { useAuth } from '../../context/AuthContext';
+import { theme } from '../../theme';
 
 type PostDetailRoute = RouteProp<FeedStackParamList, 'PostDetail'>;
 
-// ─── Name Prompt Modal ────────────────────────────────────────────────────────
-
-interface NamePromptProps {
-  visible: boolean;
-  onConfirm: (name: string) => void;
-  onCancel: () => void;
+function docToComment(d: any): Comment {
+  const data = d.data();
+  return {
+    id: d.id,
+    postId: data.postId,
+    authorName: data.authorName ?? 'Anonymous',
+    text: data.text ?? '',
+    imageUrl: data.imageUrl,
+    imageAspectRatio: data.imageAspectRatio,
+    status: data.status ?? 'pending',
+    createdAt: data.createdAt?.toDate() ?? new Date(),
+    updatedAt: data.updatedAt?.toDate() ?? new Date(),
+    isDeleted: data.isDeleted ?? false,
+  };
 }
-
-const NamePromptModal = ({ visible, onConfirm, onCancel }: NamePromptProps) => {
-  const [name, setName] = useState('');
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
-      <View style={nameStyles.overlay}>
-        <View style={nameStyles.sheet}>
-          <View style={nameStyles.flowerRow}>
-            <Ionicons name="flower" size={28} color={theme.colors.accent} />
-          </View>
-          <Text style={nameStyles.title}>What's your name?</Text>
-          <Text style={nameStyles.subtitle}>
-            Just enter your first name so Franny knows who's saying hi 🌸
-          </Text>
-          <TextInput
-            style={nameStyles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor={theme.colors.taupe}
-            autoFocus
-            maxLength={40}
-            returnKeyType="done"
-            onSubmitEditing={() => name.trim() && onConfirm(name.trim())}
-          />
-          <TouchableOpacity
-            style={[nameStyles.confirmBtn, !name.trim() && nameStyles.confirmBtnDisabled]}
-            onPress={() => onConfirm(name.trim())}
-            disabled={!name.trim()}
-            activeOpacity={0.8}
-          >
-            <Text style={nameStyles.confirmBtnText}>Continue</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={nameStyles.cancelBtn} onPress={onCancel}>
-            <Text style={nameStyles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function PostDetailScreen() {
   const { params } = useRoute<PostDetailRoute>();
-  const { user, deviceId, setDisplayName } = useAuth();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLoadingPost, setIsLoadingPost] = useState(true);
+  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+
+  // Comment form state
   const [commentText, setCommentText] = useState('');
-  const [commentImage, setCommentImage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const [commentName, setCommentName] = useState(user?.displayName ?? '');
+  const [commentImageUri, setCommentImageUri] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      const p = await getPost(params.postId);
-      setPost(p);
-      if (deviceId && p) {
-        const liked = await getDeviceLikedPosts(deviceId, [p.id]);
-        setIsLiked(liked.has(p.id));
-      }
-      setIsLoading(false);
-    };
-    load();
+    loadPost();
+    loadComments();
+  }, [params.postId]);
 
-    const unsubscribe = subscribeToApprovedComments(params.postId, setComments);
-    return unsubscribe;
-  }, [params.postId, deviceId]);
+  async function loadPost() {
+    const snap = await getDoc(doc(db, 'posts', params.postId));
+    if (snap.exists()) {
+      const data = snap.data();
+      setPost({
+        id: snap.id,
+        authorId: data.authorId,
+        authorName: data.authorName ?? 'Franny',
+        text: data.text ?? '',
+        imageUrl: data.imageUrl,
+        imageAspectRatio: data.imageAspectRatio,
+        likeCount: data.likeCount ?? 0,
+        commentCount: data.commentCount ?? 0,
+        createdAt: data.createdAt?.toDate() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate() ?? new Date(),
+        isDeleted: data.isDeleted ?? false,
+      });
+    }
+    setIsLoadingPost(false);
+  }
 
-  const handleLike = async () => {
-    if (!post || !deviceId) return;
-    const wasLiked = isLiked;
-    setIsLiked(!wasLiked);
-    setPost(p => p ? { ...p, likeCount: p.likeCount + (wasLiked ? -1 : 1) } : p);
-    await toggleLike(post.id, deviceId);
-  };
+  async function loadComments() {
+    const q = query(
+      collection(db, 'posts', params.postId, 'comments'),
+      where('isDeleted', '==', false),
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'asc'),
+    );
+    const snap = await getDocs(q);
+    setComments(snap.docs.map(docToComment));
+    setIsLoadingComments(false);
+  }
 
-  const handlePickImage = async () => {
+  async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
     });
-    if (!result.canceled) setCommentImage(result.assets[0].uri);
-  };
-
-  // Called when user taps the send button
-  const handleSendTapped = () => {
-    if (!commentText.trim()) return;
-
-    // Check if we already have a display name (anon or admin)
-    const displayName = user.role === 'admin'
-      ? user.displayName
-      : user.displayName;
-
-    if (!displayName) {
-      // First time commenter — ask for their name
-      setShowNamePrompt(true);
-    } else {
-      submitComment(displayName);
+    if (!result.canceled && result.assets[0]) {
+      setCommentImageUri(result.assets[0].uri);
     }
-  };
+  }
 
-  const handleNameConfirmed = async (name: string) => {
-    setShowNamePrompt(false);
-    await setDisplayName(name);
-    submitComment(name);
-  };
-
-  const submitComment = async (authorName: string) => {
-    if (!post || !commentText.trim()) return;
-    setIsSubmitting(true);
+  async function submitComment() {
+    if (!commentText.trim() || !commentName.trim()) {
+      Alert.alert('Missing info', 'Please enter your name and a comment.');
+      return;
+    }
+    setIsSending(true);
     try {
-      await createComment(post.id, {
-        authorName,
-        text: commentText.trim(),
-        imageUri: commentImage ?? undefined,
-      });
-      setCommentText('');
-      setCommentImage(null);
-      Alert.alert(
-        '🌸 Comment submitted',
-        'Your comment is awaiting Franny's approval before it appears.',
-        [{ text: 'Got it' }]
-      );
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      let imageUrl: string | undefined;
+      let imageAspectRatio: number | undefined;
 
-  if (isLoading || !post) {
+      if (commentImageUri) {
+        const resp = await fetch(commentImageUri);
+        const blob = await resp.blob();
+        const imgRef = ref(storage, `comments/${uuidv4()}`);
+        await uploadBytes(imgRef, blob);
+        imageUrl = await getDownloadURL(imgRef);
+      }
+
+      await addDoc(collection(db, 'posts', params.postId, 'comments'), {
+        postId: params.postId,
+        authorName: commentName.trim(),
+        text: commentText.trim(),
+        imageUrl,
+        imageAspectRatio,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        isDeleted: false,
+      });
+
+      setCommentText('');
+      setCommentImageUri(null);
+      Alert.alert('Sent!', 'Your comment is awaiting approval.');
+    } catch (err) {
+      Alert.alert('Error', 'Could not send your comment. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  if (isLoadingPost) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={theme.colors.primary} size="large" />
@@ -181,188 +165,126 @@ export default function PostDetailScreen() {
     );
   }
 
+  if (!post) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>Post not found.</Text>
+      </View>
+    );
+  }
+
   return (
-    <>
-      <NamePromptModal
-        visible={showNamePrompt}
-        onConfirm={handleNameConfirmed}
-        onCancel={() => setShowNamePrompt(false)}
-      />
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={88}
-      >
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Post */}
-          <View style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="flower" size={20} color={theme.colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.authorName}>{post.authorName}</Text>
-                <Text style={styles.timestamp}>
-                  {post.createdAt.toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric',
-                  })}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.postText}>{post.text}</Text>
-
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <FlatList
+        data={comments}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => <CommentItem comment={item} isAdmin={isAdmin} />}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {/* Post body */}
+            {post.text.length > 0 && <Text style={styles.postText}>{post.text}</Text>}
             {post.imageUrl && (
               <Image
                 source={{ uri: post.imageUrl }}
-                style={styles.postImage}
+                style={[
+                  styles.postImage,
+                  post.imageAspectRatio ? { aspectRatio: post.imageAspectRatio } : undefined,
+                ]}
                 resizeMode="cover"
               />
             )}
-
-            <TouchableOpacity style={styles.likeRow} onPress={handleLike} activeOpacity={0.7}>
-              <Ionicons
-                name={isLiked ? 'heart' : 'heart-outline'}
-                size={24}
-                color={isLiked ? theme.colors.accentDark : theme.colors.warmGray}
-              />
-              <Text style={[styles.likeCount, isLiked && styles.likeCountActive]}>
-                {post.likeCount > 0
-                  ? `${post.likeCount} ${post.likeCount === 1 ? 'like' : 'likes'}`
-                  : 'Be the first to like this'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Comments */}
-          <Text style={styles.sectionTitle}>
-            {comments.length > 0 ? `${comments.length} Comments` : 'Comments'}
-          </Text>
-
-          {comments.length === 0 && (
-            <Text style={styles.noComments}>
-              No comments yet. Be the first!
+            <View style={styles.divider} />
+            <Text style={styles.commentsTitle}>
+              Comments {comments.length > 0 ? `(${comments.length})` : ''}
             </Text>
-          )}
-
-          {comments.map(c => (
-            <CommentItem key={c.id} comment={c} />
-          ))}
-          <View style={{ height: theme.spacing.xl }} />
-        </ScrollView>
-
-        {/* Comment input bar */}
-        <View style={styles.commentBar}>
-          {commentImage && (
-            <View style={styles.imagePreviewRow}>
-              <Image source={{ uri: commentImage }} style={styles.imagePreview} />
-              <TouchableOpacity
-                onPress={() => setCommentImage(null)}
-                style={{ marginLeft: theme.spacing.xs }}
-              >
-                <Ionicons name="close-circle" size={20} color={theme.colors.error} />
-              </TouchableOpacity>
-            </View>
-          )}
-          <View style={styles.inputRow}>
-            <TouchableOpacity onPress={handlePickImage} style={styles.photoBtn}>
-              <Ionicons name="image-outline" size={22} color={theme.colors.primary} />
-            </TouchableOpacity>
+          </View>
+        }
+        ListEmptyComponent={
+          isLoadingComments ? (
+            <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: theme.spacing.lg }} />
+          ) : (
+            <Text style={styles.noComments}>No comments yet. Be the first!</Text>
+          )
+        }
+        ListFooterComponent={
+          <View style={styles.commentForm}>
+            <View style={styles.divider} />
+            <Text style={styles.formTitle}>Leave a comment</Text>
             <TextInput
-              style={styles.commentInput}
+              style={styles.input}
+              placeholder="Your name"
+              placeholderTextColor={theme.colors.taupe}
+              value={commentName}
+              onChangeText={setCommentName}
+            />
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              placeholder="Write something kind..."
+              placeholderTextColor={theme.colors.taupe}
               value={commentText}
               onChangeText={setCommentText}
-              placeholder="Add a comment…"
-              placeholderTextColor={theme.colors.taupe}
               multiline
-              maxLength={500}
             />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!commentText.trim() || isSubmitting) && styles.sendBtnDisabled]}
-              onPress={handleSendTapped}
-              disabled={!commentText.trim() || isSubmitting}
-            >
-              {isSubmitting
-                ? <ActivityIndicator color={theme.colors.white} size="small" />
-                : <Ionicons name="send" size={16} color={theme.colors.white} />
-              }
-            </TouchableOpacity>
+            <View style={styles.formActions}>
+              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage}>
+                <Ionicons
+                  name={commentImageUri ? 'image' : 'image-outline'}
+                  size={22}
+                  color={commentImageUri ? theme.colors.primary : theme.colors.warmGray}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sendBtn, (isSending || !commentText.trim()) && styles.sendBtnDisabled]}
+                onPress={submitComment}
+                disabled={isSending || !commentText.trim()}
+              >
+                {isSending ? (
+                  <ActivityIndicator color={theme.colors.white} size="small" />
+                ) : (
+                  <Ionicons name="send" size={18} color={theme.colors.white} />
+                )}
+              </TouchableOpacity>
+            </View>
+            {commentImageUri && (
+              <View style={styles.imagePreviewRow}>
+                <Image source={{ uri: commentImageUri }} style={styles.imagePreview} />
+                <TouchableOpacity onPress={() => setCommentImageUri(null)} style={styles.removeImageBtn}>
+                  <Ionicons name="close-circle" size={20} color={theme.colors.error} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </>
+        }
+      />
+    </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: theme.colors.cream },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flex: 1 },
-  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
-  postCard: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    ...theme.shadows.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-  },
-  avatarPlaceholder: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: theme.colors.sand,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: theme.colors.accentLight,
-  },
-  authorName: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.charcoal,
-  },
-  timestamp: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.warmGray,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.cream },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.cream },
+  content: { padding: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   postText: {
     fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.base,
+    fontSize: theme.typography.sizes.md,
     color: theme.colors.charcoal,
-    lineHeight: 24,
+    lineHeight: 26,
     marginBottom: theme.spacing.md,
   },
   postImage: {
-    width: '100%', height: 240,
+    width: '100%',
     borderRadius: theme.radius.md,
-    marginBottom: theme.spacing.md,
     backgroundColor: theme.colors.sand,
+    marginBottom: theme.spacing.md,
   },
-  likeRow: {
-    flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
-    borderTopWidth: 1, borderTopColor: theme.colors.border,
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.md,
   },
-  likeCount: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.warmGray,
-  },
-  likeCountActive: { color: theme.colors.accentDark },
-  sectionTitle: {
+  commentsTitle: {
     fontFamily: theme.typography.fonts.display,
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.charcoal,
@@ -370,115 +292,65 @@ const styles = StyleSheet.create({
   },
   noComments: {
     fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
+    fontSize: theme.typography.sizes.base,
     color: theme.colors.warmGray,
     textAlign: 'center',
-    marginBottom: theme.spacing.xl,
+    marginVertical: theme.spacing.lg,
   },
-  commentBar: {
-    backgroundColor: theme.colors.white,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+  errorText: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.warmGray,
+  },
+  commentForm: { marginTop: theme.spacing.md },
+  formTitle: {
+    fontFamily: theme.typography.fonts.display,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.charcoal,
+    marginBottom: theme.spacing.md,
+  },
+  input: {
+    backgroundColor: theme.colors.inputBg,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? 28 : theme.spacing.md,
-  },
-  imagePreviewRow: {
-    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: theme.spacing.sm + 4,
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.base,
+    color: theme.colors.charcoal,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     marginBottom: theme.spacing.sm,
   },
+  inputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  formActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.xs,
+  },
+  imagePickerBtn: { padding: theme.spacing.sm },
+  sendBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.round,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: { opacity: 0.5 },
+  imagePreviewRow: {
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
   imagePreview: {
-    width: 56, height: 56,
+    width: 80,
+    height: 80,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.sand,
   },
-  inputRow: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    gap: theme.spacing.sm,
-  },
-  photoBtn: { padding: theme.spacing.xs, marginBottom: 2 },
-  commentInput: {
-    flex: 1,
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radius.xl,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.charcoal,
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sendBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 2,
-  },
-  sendBtnDisabled: { backgroundColor: theme.colors.taupe },
-});
-
-const nameStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: theme.colors.white,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
-    padding: theme.spacing.xl,
-    paddingBottom: Platform.OS === 'ios' ? 40 : theme.spacing.xl,
-    alignItems: 'center',
-  },
-  flowerRow: { marginBottom: theme.spacing.sm },
-  title: {
-    fontFamily: theme.typography.fonts.display,
-    fontSize: theme.typography.sizes.xl,
-    color: theme.colors.charcoal,
-    marginBottom: theme.spacing.sm,
-  },
-  subtitle: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.warmGray,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: theme.spacing.lg,
-  },
-  input: {
-    width: '100%',
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 12,
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.charcoal,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: theme.spacing.md,
-  },
-  confirmBtn: {
-    width: '100%',
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.round,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  confirmBtnDisabled: { opacity: 0.45 },
-  confirmBtnText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.base,
-    color: theme.colors.white,
-  },
-  cancelBtn: { paddingVertical: theme.spacing.sm },
-  cancelBtnText: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.sm,
-    color: theme.colors.warmGray,
-  },
+  removeImageBtn: { marginLeft: theme.spacing.xs },
 });

@@ -1,197 +1,153 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
   ActivityIndicator,
-  TextInput,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
   View,
   ViewStyle,
-  TextStyle,
 } from 'react-native';
-import { theme } from '../../assets/theme';
+import { theme } from '../theme';
 
-// ─── Button ───────────────────────────────────────────────────────────────────
+// ─── Button ──────────────────────────────────────────────────────────────────
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   isLoading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
-  icon?: React.ReactNode;
 }
 
-export const Button = ({
-  label,
-  onPress,
-  variant = 'primary',
-  isLoading = false,
-  disabled = false,
-  style,
-  icon,
-}: ButtonProps) => (
-  <TouchableOpacity
-    style={[
-      styles.btn,
-      variant === 'primary' && styles.btnPrimary,
-      variant === 'secondary' && styles.btnSecondary,
-      variant === 'ghost' && styles.btnGhost,
-      (disabled || isLoading) && styles.btnDisabled,
-      style,
-    ]}
-    onPress={onPress}
-    disabled={disabled || isLoading}
-    activeOpacity={0.82}
-  >
-    {isLoading ? (
-      <ActivityIndicator
-        color={variant === 'ghost' ? theme.colors.primary : theme.colors.white}
-        size="small"
-      />
-    ) : (
-      <React.Fragment>
-        {icon}
-        <Text
-          style={[
-            styles.btnText,
-            variant === 'ghost' && styles.btnTextGhost,
-            variant === 'secondary' && styles.btnTextSecondary,
-          ]}
-        >
-          {label}
-        </Text>
-      </React.Fragment>
-    )}
-  </TouchableOpacity>
-);
+export function Button({ label, onPress, variant = 'primary', isLoading, disabled, style }: ButtonProps) {
+  const isDisabled = disabled || isLoading;
 
-// ─── Input ────────────────────────────────────────────────────────────────────
+  return (
+    <TouchableOpacity
+      style={[styles.btn, styles[`btn_${variant}`], isDisabled && styles.btn_disabled, style]}
+      onPress={onPress}
+      disabled={isDisabled}
+      activeOpacity={0.75}
+    >
+      {isLoading ? (
+        <ActivityIndicator color={variant === 'primary' ? theme.colors.white : theme.colors.primary} size="small" />
+      ) : (
+        <Text style={[styles.btnLabel, styles[`btnLabel_${variant}`]]}>{label}</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
 
-interface InputProps {
-  label?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  secureTextEntry?: boolean;
-  multiline?: boolean;
-  numberOfLines?: number;
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  keyboardType?: 'default' | 'email-address';
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
+interface CardProps {
+  children: React.ReactNode;
   style?: ViewStyle;
-  error?: string;
 }
 
-export const Input = ({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry,
-  multiline,
-  numberOfLines,
-  autoCapitalize = 'sentences',
-  keyboardType = 'default',
-  style,
-  error,
-}: InputProps) => (
-  <View style={[styles.inputWrapper, style]}>
-    {label && <Text style={styles.inputLabel}>{label}</Text>}
-    <TextInput
-      style={[
-        styles.input,
-        multiline && styles.inputMultiline,
-        error && styles.inputError,
-      ]}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={theme.colors.taupe}
-      secureTextEntry={secureTextEntry}
-      multiline={multiline}
-      numberOfLines={numberOfLines}
-      autoCapitalize={autoCapitalize}
-      keyboardType={keyboardType}
-      textAlignVertical={multiline ? 'top' : 'center'}
-    />
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
-);
+export function Card({ children, style }: CardProps) {
+  return <View style={[styles.card, style]}>{children}</View>;
+}
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Section Title ────────────────────────────────────────────────────────────
+
+interface SectionTitleProps {
+  children: string;
+  style?: TextStyle;
+}
+
+export function SectionTitle({ children, style }: SectionTitleProps) {
+  return <Text style={[styles.sectionTitle, style]}>{children}</Text>;
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+
+interface EmptyStateProps {
+  icon: string;
+  title: string;
+  subtitle?: string;
+}
+
+export function EmptyState({ icon, title, subtitle }: EmptyStateProps) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyIcon}>{icon}</Text>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      {subtitle && <Text style={styles.emptySubtitle}>{subtitle}</Text>}
+    </View>
+  );
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Button
   btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: theme.spacing.sm + 4,
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.radius.round,
-    gap: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
-  btnPrimary: {
+  btn_primary: {
     backgroundColor: theme.colors.primary,
     ...theme.shadows.button,
   },
-  btnSecondary: {
-    backgroundColor: theme.colors.accent,
-  },
-  btnGhost: {
+  btn_secondary: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: theme.colors.primary,
   },
-  btnDisabled: {
+  btn_ghost: {
+    backgroundColor: 'transparent',
+  },
+  btn_danger: {
+    backgroundColor: theme.colors.error,
+  },
+  btn_disabled: {
     opacity: 0.5,
   },
-  btnText: {
-    fontFamily: theme.typography.fonts.bodyMedium,
+  btnLabel: {
+    fontFamily: theme.typography.fonts.bodyBold,
     fontSize: theme.typography.sizes.base,
-    color: theme.colors.white,
-    letterSpacing: 0.3,
   },
-  btnTextGhost: {
-    color: theme.colors.primary,
+  btnLabel_primary: { color: theme.colors.white },
+  btnLabel_secondary: { color: theme.colors.primary },
+  btnLabel_ghost: { color: theme.colors.primary },
+  btnLabel_danger: { color: theme.colors.white },
+
+  card: {
+    backgroundColor: theme.colors.cardBg,
+    borderRadius: theme.radius.md,
+    ...theme.shadows.card,
   },
-  btnTextSecondary: {
+
+  sectionTitle: {
+    fontFamily: theme.typography.fonts.display,
+    fontSize: theme.typography.sizes.xl,
     color: theme.colors.charcoal,
   },
 
-  // Input
-  inputWrapper: {
-    marginBottom: theme.spacing.md,
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.xxxl,
+    paddingHorizontal: theme.spacing.xl,
   },
-  inputLabel: {
-    fontFamily: theme.typography.fonts.bodyMedium,
-    fontSize: theme.typography.sizes.sm,
+  emptyIcon: { fontSize: 48, marginBottom: theme.spacing.md },
+  emptyTitle: {
+    fontFamily: theme.typography.fonts.display,
+    fontSize: theme.typography.sizes.xl,
     color: theme.colors.charcoal,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
   },
-  input: {
-    backgroundColor: theme.colors.inputBg,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 12,
+  emptySubtitle: {
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.base,
-    color: theme.colors.charcoal,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  inputMultiline: {
-    minHeight: 100,
-    paddingTop: 12,
-  },
-  inputError: {
-    borderColor: theme.colors.error,
-  },
-  errorText: {
-    fontFamily: theme.typography.fonts.body,
-    fontSize: theme.typography.sizes.xs,
-    color: theme.colors.error,
-    marginTop: theme.spacing.xs,
+    color: theme.colors.warmGray,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
