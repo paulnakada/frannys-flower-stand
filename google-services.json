@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224786983858",
+    "project_id": "franny-s-flower-stand",
+    "storage_bucket": "franny-s-flower-stand.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224786983858:android:279cb805486a4fd08412ab",
+        "android_client_info": {
+          "package_name": "com.schoolpages.frannysflower"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKZtXCHvA5nW70bXXZJnE55N6Muvc68TY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

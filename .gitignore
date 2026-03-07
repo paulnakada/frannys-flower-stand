@@ -13,7 +13,6 @@ dist/
 .claude/
 
 # Firebase credentials — NEVER commit these
-google-services.json
 *firebase-adminsdk*.json
 *.serviceAccount.json
 
