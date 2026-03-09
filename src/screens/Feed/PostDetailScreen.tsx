@@ -27,9 +27,10 @@ import {
   where,
 } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getIdToken } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
-import { db, storage } from '../../services/firebase';
+import { db, auth } from '../../services/firebase';
 import { Comment, FeedStackParamList, Post } from '../../types';
 import { CommentItem } from '../../components/CommentItem';
 import { useAuth } from '../../context/AuthContext';
@@ -125,22 +126,32 @@ export default function PostDetailScreen() {
     setIsSending(true);
     try {
       let imageUrl: string | undefined;
-      let imageAspectRatio: number | undefined;
 
-      if (commentImageUri) {
-        const resp = await fetch(commentImageUri);
-        const blob = await resp.blob();
-        const imgRef = ref(storage, `comments/${uuidv4()}`);
-        await uploadBytes(imgRef, blob);
-        imageUrl = await getDownloadURL(imgRef);
+      if (commentImageUri && auth.currentUser) {
+        const filename = uuidv4();
+        const storagePath = `comments/${filename}`;
+        const bucket = 'franny-s-flower-stand.firebasestorage.app';
+        const idToken = await getIdToken(auth.currentUser);
+        const result = await FileSystem.uploadAsync(
+          `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(storagePath)}`,
+          commentImageUri,
+          {
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+            headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'image/jpeg' },
+          },
+        );
+        if (result.status >= 200 && result.status < 300) {
+          const { downloadTokens } = JSON.parse(result.body);
+          imageUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(storagePath)}?alt=media&token=${downloadTokens}`;
+        }
       }
 
       await addDoc(collection(db, 'posts', params.postId, 'comments'), {
         postId: params.postId,
         authorName: commentName.trim(),
         text: commentText.trim(),
-        imageUrl,
-        imageAspectRatio,
+        ...(imageUrl ? { imageUrl } : {}),
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -150,8 +161,8 @@ export default function PostDetailScreen() {
       setCommentText('');
       setCommentImageUri(null);
       Alert.alert('Sent!', 'Your comment is awaiting approval.');
-    } catch (err) {
-      Alert.alert('Error', 'Could not send your comment. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? String(err));
     } finally {
       setIsSending(false);
     }

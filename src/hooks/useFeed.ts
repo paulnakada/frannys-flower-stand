@@ -4,6 +4,7 @@ import {
   doc,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -56,13 +57,16 @@ export function useFeed() {
   const [hasMore, setHasMore] = useState(true);
   const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
   const deviceIdRef = useRef<string | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const initDeviceId = useCallback(async () => {
     deviceIdRef.current = await getDeviceId();
   }, []);
 
-  const fetchPosts = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsLoading(true);
+  const subscribeFeed = useCallback(() => {
+    // Tear down any existing listener before creating a new one
+    unsubscribeRef.current?.();
+    setIsLoading(true);
 
     const q = query(
       collection(db, 'posts'),
@@ -71,18 +75,16 @@ export function useFeed() {
       limit(PAGE_SIZE),
     );
 
-    const snap = await getDocs(q);
-    const fetched = snap.docs.map(docToPost);
-    lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
-    setHasMore(snap.docs.length === PAGE_SIZE);
-    setPosts(fetched);
-
-    // Load liked status
-    if (deviceIdRef.current) {
-      await refreshLikedSet(fetched.map(p => p.id));
-    }
-
-    setIsLoading(false);
+    unsubscribeRef.current = onSnapshot(q, async (snap) => {
+      const fetched = snap.docs.map(docToPost);
+      lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
+      setHasMore(snap.docs.length === PAGE_SIZE);
+      setPosts(fetched);
+      if (deviceIdRef.current) {
+        await refreshLikedSet(fetched.map(p => p.id));
+      }
+      setIsLoading(false);
+    });
   }, []);
 
   const loadMore = useCallback(async () => {
@@ -171,7 +173,8 @@ export function useFeed() {
   }, [likedPostIds]);
 
   useEffect(() => {
-    initDeviceId().then(() => fetchPosts());
+    initDeviceId().then(() => subscribeFeed());
+    return () => { unsubscribeRef.current?.(); };
   }, []);
 
   return {
@@ -180,7 +183,7 @@ export function useFeed() {
     isLoading,
     isLoadingMore,
     hasMore,
-    refresh: () => fetchPosts(true),
+    refresh: subscribeFeed,
     loadMore,
     handleToggleLike,
   };

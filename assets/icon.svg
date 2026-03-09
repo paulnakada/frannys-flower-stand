@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#6FA86F"/>
+      <stop offset="100%" stop-color="#4A7A4A"/>
+    </radialGradient>
+    <radialGradient id="petal1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F5D0DC"/>
+      <stop offset="100%" stop-color="#E8A0B4"/>
+    </radialGradient>
+    <radialGradient id="petal2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF8E7"/>
+      <stop offset="100%" stop-color="#F5D878"/>
+    </radialGradient>
+    <radialGradient id="petal3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFD0D0"/>
+      <stop offset="100%" stop-color="#E87070"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="50%" r="70%">
+      <stop offset="60%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.2)"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#vig)"/>
+
+  <!-- ===== TABLE ===== -->
+  <!-- Table top surface -->
+  <rect x="60" y="730" width="904" height="70" rx="10" fill="#D9A060"/>
+  <!-- Table top highlight -->
+  <rect x="60" y="730" width="904" height="18" rx="10" fill="#E8B870"/>
+  <!-- Table top shadow edge -->
+  <rect x="60" y="788" width="904" height="12" rx="4" fill="#C4884A"/>
+  <!-- Left leg -->
+  <rect x="120" y="800" width="55" height="180" rx="8" fill="#C4884A"/>
+  <rect x="120" y="800" width="20" height="180" rx="8" fill="#D9A060"/>
+  <!-- Right leg -->
+  <rect x="849" y="800" width="55" height="180" rx="8" fill="#C4884A"/>
+  <rect x="849" y="800" width="20" height="180" rx="8" fill="#D9A060"/>
+  <!-- Leg crossbar -->
+  <rect x="150" y="920" width="724" height="28" rx="8" fill="#9E6A30"/>
+
+  <!-- ===== LEFT BOUQUET (blue vase, pink+yellow+red) ===== -->
+  <!-- Vase left -->
+  <ellipse cx="248" cy="762" rx="42" ry="16" fill="#5B8DB8" opacity="0.6"/>
+  <path d="M206 730 Q210 780 248 790 Q286 780 290 730 Z" fill="#6FA0C8"/>
+  <path d="M210 730 Q215 770 248 778 Q245 770 214 730 Z" fill="#8ABCDC" opacity="0.5"/>
+  <ellipse cx="248" cy="730" rx="42" ry="12" fill="#7AB0D4"/>
+  <!-- Stems left -->
+  <line x1="248" y1="728" x2="230" y2="640" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <line x1="248" y1="728" x2="255" y2="630" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <line x1="248" y1="728" x2="272" y2="645" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <!-- Leaf left -->
+  <ellipse cx="222" cy="685" rx="22" ry="11" fill="#4A8A4A" transform="rotate(-30 222 685)"/>
+  <ellipse cx="270" cy="680" rx="20" ry="10" fill="#4A8A4A" transform="rotate(25 270 680)"/>
+  <!-- Yellow flower left -->
+  <circle cx="232" cy="610" r="28" fill="url(#petal2)"/>
+  <circle cx="215" cy="598" r="20" fill="url(#petal2)"/>
+  <circle cx="250" cy="596" r="20" fill="url(#petal2)"/>
+  <circle cx="214" cy="618" r="20" fill="url(#petal2)"/>
+  <circle cx="250" cy="622" r="20" fill="url(#petal2)"/>
+  <circle cx="232" cy="610" r="16" fill="#F0C030"/>
+  <!-- Pink flower left -->
+  <circle cx="258" cy="648" r="26" fill="url(#petal1)"/>
+  <circle cx="242" cy="636" r="18" fill="url(#petal1)"/>
+  <circle cx="274" cy="636" r="18" fill="url(#petal1)"/>
+  <circle cx="240" cy="656" r="18" fill="url(#petal1)"/>
+  <circle cx="275" cy="658" r="18" fill="url(#petal1)"/>
+  <circle cx="258" cy="648" r="14" fill="#E090A8"/>
+  <!-- Red accent left -->
+  <circle cx="296" cy="600" r="22" fill="url(#petal3)"/>
+  <circle cx="282" cy="590" r="15" fill="url(#petal3)"/>
+  <circle cx="310" cy="590" r="15" fill="url(#petal3)"/>
+  <circle cx="281" cy="608" r="15" fill="url(#petal3)"/>
+  <circle cx="311" cy="610" r="15" fill="url(#petal3)"/>
+  <circle cx="296" cy="600" r="12" fill="#C84848"/>
+
+  <!-- ===== CENTER BOUQUET (terracotta vase, large flowers) ===== -->
+  <!-- Vase center -->
+  <ellipse cx="512" cy="762" rx="55" ry="18" fill="#8B4A4A" opacity="0.6"/>
+  <path d="M457 720 Q462 785 512 798 Q562 785 567 720 Z" fill="#A05A5A"/>
+  <path d="M462 720 Q468 772 512 782 Q509 772 468 720 Z" fill="#C07878" opacity="0.4"/>
+  <ellipse cx="512" cy="720" rx="55" ry="15" fill="#B86060"/>
+  <!-- Stems center -->
+  <line x1="500" y1="718" x2="475" y2="600" stroke="#3D7A3D" stroke-width="9" stroke-linecap="round"/>
+  <line x1="512" y1="718" x2="515" y2="585" stroke="#3D7A3D" stroke-width="9" stroke-linecap="round"/>
+  <line x1="524" y1="718" x2="548" y2="605" stroke="#3D7A3D" stroke-width="9" stroke-linecap="round"/>
+  <!-- Leaves center -->
+  <ellipse cx="472" cy="648" rx="28" ry="13" fill="#4A8A4A" transform="rotate(-35 472 648)"/>
+  <ellipse cx="552" cy="645" rx="26" ry="12" fill="#4A8A4A" transform="rotate(30 552 645)"/>
+  <!-- Large pink flower center -->
+  <circle cx="510" cy="570" r="52" fill="url(#petal1)"/>
+  <circle cx="478" cy="550" r="36" fill="url(#petal1)"/>
+  <circle cx="542" cy="550" r="36" fill="url(#petal1)"/>
+  <circle cx="475" cy="585" r="36" fill="url(#petal1)"/>
+  <circle cx="545" cy="585" r="36" fill="url(#petal1)"/>
+  <circle cx="510" cy="535" r="32" fill="url(#petal1)"/>
+  <circle cx="510" cy="570" r="30" fill="#E090A8"/>
+  <!-- Yellow flower center -->
+  <circle cx="468" cy="510" r="36" fill="url(#petal2)"/>
+  <circle cx="448" cy="494" r="26" fill="url(#petal2)"/>
+  <circle cx="488" cy="492" r="26" fill="url(#petal2)"/>
+  <circle cx="446" cy="518" r="26" fill="url(#petal2)"/>
+  <circle cx="490" cy="524" r="26" fill="url(#petal2)"/>
+  <circle cx="468" cy="510" r="20" fill="#F0C030"/>
+  <!-- Red flower center -->
+  <circle cx="556" cy="505" r="34" fill="url(#petal3)"/>
+  <circle cx="538" cy="490" r="24" fill="url(#petal3)"/>
+  <circle cx="574" cy="490" r="24" fill="url(#petal3)"/>
+  <circle cx="536" cy="516" r="24" fill="url(#petal3)"/>
+  <circle cx="576" cy="518" r="24" fill="url(#petal3)"/>
+  <circle cx="556" cy="505" r="18" fill="#C84848"/>
+
+  <!-- ===== RIGHT BOUQUET (blue vase, yellow+red+pink) ===== -->
+  <!-- Vase right -->
+  <ellipse cx="776" cy="762" rx="42" ry="16" fill="#5B8DB8" opacity="0.6"/>
+  <path d="M734 730 Q738 780 776 790 Q814 780 818 730 Z" fill="#6FA0C8"/>
+  <path d="M738 730 Q743 770 776 778 Q773 770 742 730 Z" fill="#8ABCDC" opacity="0.5"/>
+  <ellipse cx="776" cy="730" rx="42" ry="12" fill="#7AB0D4"/>
+  <!-- Stems right -->
+  <line x1="776" y1="728" x2="758" y2="638" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <line x1="776" y1="728" x2="782" y2="628" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <line x1="776" y1="728" x2="798" y2="642" stroke="#3D7A3D" stroke-width="7" stroke-linecap="round"/>
+  <!-- Leaves right -->
+  <ellipse cx="752" cy="685" rx="22" ry="11" fill="#4A8A4A" transform="rotate(-28 752 685)"/>
+  <ellipse cx="800" cy="680" rx="20" ry="10" fill="#4A8A4A" transform="rotate(28 800 680)"/>
+  <!-- Yellow flower right -->
+  <circle cx="756" cy="610" r="32" fill="url(#petal2)"/>
+  <circle cx="736" cy="595" r="22" fill="url(#petal2)"/>
+  <circle cx="776" cy="594" r="22" fill="url(#petal2)"/>
+  <circle cx="734" cy="618" r="22" fill="url(#petal2)"/>
+  <circle cx="778" cy="622" r="22" fill="url(#petal2)"/>
+  <circle cx="756" cy="610" r="18" fill="#F0C030"/>
+  <!-- Pink flower right -->
+  <circle cx="786" cy="650" r="26" fill="url(#petal1)"/>
+  <circle cx="769" cy="637" r="18" fill="url(#petal1)"/>
+  <circle cx="802" cy="637" r="18" fill="url(#petal1)"/>
+  <circle cx="768" cy="658" r="18" fill="url(#petal1)"/>
+  <circle cx="803" cy="660" r="18" fill="url(#petal1)"/>
+  <circle cx="786" cy="650" r="14" fill="#E090A8"/>
+  <!-- Red accent right -->
+  <circle cx="808" cy="598" r="24" fill="url(#petal3)"/>
+  <circle cx="793" cy="587" r="17" fill="url(#petal3)"/>
+  <circle cx="823" cy="587" r="17" fill="url(#petal3)"/>
+  <circle cx="792" cy="607" r="17" fill="url(#petal3)"/>
+  <circle cx="824" cy="610" r="17" fill="url(#petal3)"/>
+  <circle cx="808" cy="598" r="13" fill="#C84848"/>
+</svg>
