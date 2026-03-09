@@ -26,6 +26,7 @@
   <rect width="1024" height="1024" fill="url(#bg)"/>
   <rect width="1024" height="1024" fill="url(#vig)"/>
 
+<g transform="translate(0,-200)">
   <!-- ===== TABLE ===== -->
   <!-- Table top surface -->
   <rect x="60" y="730" width="904" height="70" rx="10" fill="#D9A060"/>
@@ -147,4 +148,5 @@
   <circle cx="792" cy="607" r="17" fill="url(#petal3)"/>
   <circle cx="824" cy="610" r="17" fill="url(#petal3)"/>
   <circle cx="808" cy="598" r="13" fill="#C84848"/>
+</g>
 </svg>
