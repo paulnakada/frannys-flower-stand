@@ -27,9 +27,27 @@ interface PostCardProps {
   onCommentPress: (postId: string) => void;
 }
 
+function docToComment(postId: string, d: any): Comment {
+  const data = d.data();
+  return {
+    id: d.id,
+    postId,
+    authorName: data.authorName ?? 'Anonymous',
+    text: data.text ?? '',
+    imageUrl: data.imageUrl,
+    imageAspectRatio: data.imageAspectRatio,
+    status: data.status ?? 'approved',
+    createdAt: data.createdAt?.toDate() ?? new Date(),
+    updatedAt: data.updatedAt?.toDate() ?? new Date(),
+    isDeleted: false,
+  } as Comment;
+}
+
 export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
   const dateLabel = formatDate(post.createdAt);
   const [previewComments, setPreviewComments] = useState<Comment[]>([]);
+  const [allComments, setAllComments] = useState<Comment[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (post.commentCount === 0) {
@@ -43,24 +61,23 @@ export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
       orderBy('createdAt', 'asc'),
       limit(PREVIEW_LIMIT),
     );
-    getDocs(q).then(snap => {
-      setPreviewComments(snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          postId: post.id,
-          authorName: data.authorName ?? 'Anonymous',
-          text: data.text ?? '',
-          imageUrl: data.imageUrl,
-          imageAspectRatio: data.imageAspectRatio,
-          status: data.status ?? 'approved',
-          createdAt: data.createdAt?.toDate() ?? new Date(),
-          updatedAt: data.updatedAt?.toDate() ?? new Date(),
-          isDeleted: false,
-        } as Comment;
-      }));
-    });
+    getDocs(q).then(snap => setPreviewComments(snap.docs.map(d => docToComment(post.id, d))));
   }, [post.id, post.commentCount]);
+
+  async function handleShowMore() {
+    const q = query(
+      collection(db, 'posts', post.id, 'comments'),
+      where('isDeleted', '==', false),
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'asc'),
+    );
+    const snap = await getDocs(q);
+    setAllComments(snap.docs.map(d => docToComment(post.id, d)));
+    setIsExpanded(true);
+  }
+
+  const visibleComments = isExpanded ? allComments : previewComments;
+  const hasMore = !isExpanded && post.commentCount > PREVIEW_LIMIT;
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(post.id)} activeOpacity={0.9}>
@@ -103,23 +120,19 @@ export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
       </View>
 
       {/* Inline comment previews */}
-      {previewComments.length > 0 && (
+      {visibleComments.length > 0 && (
         <View style={styles.commentsSection}>
-          {previewComments.map(comment => (
+          {visibleComments.map((comment, index) => (
             <View key={comment.id} style={styles.commentRow}>
               <Text style={styles.commentText} numberOfLines={2}>
                 <Text style={styles.commentAuthor}>{comment.authorName} </Text>
                 {comment.text}
+                {hasMore && index === PREVIEW_LIMIT - 1 && (
+                  <Text style={styles.moreLink} onPress={handleShowMore}> more</Text>
+                )}
               </Text>
             </View>
           ))}
-          {post.commentCount > PREVIEW_LIMIT && (
-            <TouchableOpacity onPress={() => onCommentPress(post.id)} style={styles.viewAllBtn}>
-              <Text style={styles.viewAllText}>
-                View all {post.commentCount} comments
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       )}
     </TouchableOpacity>
@@ -226,10 +239,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     flex: 1,
   },
-  viewAllBtn: {
-    marginTop: theme.spacing.xs,
-  },
-  viewAllText: {
+  moreLink: {
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.sm,
     color: theme.colors.warmGray,
