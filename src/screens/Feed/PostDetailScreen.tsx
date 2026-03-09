@@ -70,6 +70,13 @@ export default function PostDetailScreen() {
   const [commentName, setCommentName] = useState(user?.displayName ?? '');
   const [commentImageUri, setCommentImageUri] = useState<string | null>(null);
 
+  // Sync name field when auth finishes loading (user starts as null)
+  useEffect(() => {
+    if (user?.displayName && !commentName) {
+      setCommentName(user.displayName);
+    }
+  }, [user?.displayName]);
+
   useEffect(() => {
     loadPost();
     loadComments();
