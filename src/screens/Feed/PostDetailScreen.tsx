@@ -86,7 +86,6 @@ export default function PostDetailScreen() {
         text: data.text ?? '',
         imageUrl: data.imageUrl,
         imageAspectRatio: data.imageAspectRatio,
-        likeCount: data.likeCount ?? 0,
         commentCount: data.commentCount ?? 0,
         createdAt: data.createdAt?.toDate() ?? new Date(),
         updatedAt: data.updatedAt?.toDate() ?? new Date(),

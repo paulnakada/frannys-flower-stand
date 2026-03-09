@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   StyleSheet,
@@ -7,8 +7,19 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Post } from '../types';
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { Comment, Post } from '../types';
 import { theme } from '../theme';
+
+const PREVIEW_LIMIT = 3;
 
 interface PostCardProps {
   post: Post;
@@ -18,6 +29,38 @@ interface PostCardProps {
 
 export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
   const dateLabel = formatDate(post.createdAt);
+  const [previewComments, setPreviewComments] = useState<Comment[]>([]);
+
+  useEffect(() => {
+    if (post.commentCount === 0) {
+      setPreviewComments([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'posts', post.id, 'comments'),
+      where('isDeleted', '==', false),
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'asc'),
+      limit(PREVIEW_LIMIT),
+    );
+    getDocs(q).then(snap => {
+      setPreviewComments(snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          postId: post.id,
+          authorName: data.authorName ?? 'Anonymous',
+          text: data.text ?? '',
+          imageUrl: data.imageUrl,
+          imageAspectRatio: data.imageAspectRatio,
+          status: data.status ?? 'approved',
+          createdAt: data.createdAt?.toDate() ?? new Date(),
+          updatedAt: data.updatedAt?.toDate() ?? new Date(),
+          isDeleted: false,
+        } as Comment;
+      }));
+    });
+  }, [post.id, post.commentCount]);
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(post.id)} activeOpacity={0.9}>
@@ -58,6 +101,27 @@ export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Inline comment previews */}
+      {previewComments.length > 0 && (
+        <View style={styles.commentsSection}>
+          {previewComments.map(comment => (
+            <View key={comment.id} style={styles.commentRow}>
+              <Text style={styles.commentText} numberOfLines={2}>
+                <Text style={styles.commentAuthor}>{comment.authorName} </Text>
+                {comment.text}
+              </Text>
+            </View>
+          ))}
+          {post.commentCount > PREVIEW_LIMIT && (
+            <TouchableOpacity onPress={() => onCommentPress(post.id)} style={styles.viewAllBtn}>
+              <Text style={styles.viewAllText}>
+                View all {post.commentCount} comments
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -137,6 +201,35 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   actionCount: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.warmGray,
+  },
+  commentsSection: {
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    flexShrink: 1,
+  },
+  commentAuthor: {
+    fontFamily: theme.typography.fonts.bodyBold,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.charcoal,
+  },
+  commentText: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.charcoal,
+    lineHeight: 20,
+    flex: 1,
+  },
+  viewAllBtn: {
+    marginTop: theme.spacing.xs,
+  },
+  viewAllText: {
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.sm,
     color: theme.colors.warmGray,
