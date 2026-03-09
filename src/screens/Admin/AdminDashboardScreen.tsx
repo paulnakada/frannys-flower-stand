@@ -149,7 +149,7 @@ export default function AdminDashboardScreen() {
         <EmptyState
           icon="✍️"
           title="No posts yet"
-          subtitle="Tap 'New Post' to share your first bloom!"
+          subtitle="Tap 'New Post' to share your first bouquet!"
         />
       }
       refreshControl={

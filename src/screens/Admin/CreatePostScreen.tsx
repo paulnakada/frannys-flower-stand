@@ -97,7 +97,7 @@ export default function CreatePostScreen() {
       // Send push notifications in background — don't block or fail the post
       sendNewPostNotification(text.trim()).catch(() => {});
 
-      Alert.alert('Posted!', 'Your bloom is live.', [
+      Alert.alert('Posted!', 'Your bouquet is live.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err: any) {
@@ -115,7 +115,7 @@ export default function CreatePostScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TextInput
           style={styles.textInput}
-          placeholder="What's blooming today? Share an update, a photo, or a note for your customers..."
+          placeholder="What's in your bouquet today? Share an update, a photo, or a note for your customers..."
           placeholderTextColor={theme.colors.taupe}
           value={text}
           onChangeText={setText}

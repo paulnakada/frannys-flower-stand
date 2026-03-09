@@ -54,7 +54,7 @@ export default function FeedScreen() {
         <View style={styles.header}>
           <View style={styles.headerTitle}>
             <Ionicons name="flower" size={20} color={theme.colors.accent} />
-            <Text style={styles.headerText}>Today's Blooms</Text>
+            <Text style={styles.headerText}>Today's Bouquets</Text>
             <Ionicons name="flower" size={20} color={theme.colors.accent} />
           </View>
           {user?.role !== 'admin' && (
@@ -67,7 +67,7 @@ export default function FeedScreen() {
       ListEmptyComponent={
         <EmptyState
           icon="🌸"
-          title="Nothing blooming yet"
+          title="No bouquets yet"
           subtitle="Check back soon for fresh updates from Franny!"
         />
       }

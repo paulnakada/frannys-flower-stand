@@ -117,7 +117,7 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Feed" component={FeedNavigator} options={{ title: 'Blooms' }} />
+      <Tab.Screen name="Feed" component={FeedNavigator} options={{ title: 'Bouquets' }} />
       {isAdmin && (
         <Tab.Screen name="Admin" component={AdminNavigator} options={{ title: 'Admin' }} />
       )}
