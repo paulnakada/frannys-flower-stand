@@ -9,14 +9,23 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.schoolpages.frannysflower"
+      "bundleIdentifier": "com.schoolpages.frannysflower",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
+      }
     },
     "android": {
       "package": "com.schoolpages.frannysflower",
       "adaptiveIcon": {
         "backgroundColor": "#FBF7F2"
       },
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -34,6 +43,9 @@
         "projectId": "11ae681b-cf13-45fb-bd8e-ca16e2643e65"
       }
     },
-    "platforms": ["ios", "android"]
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }
