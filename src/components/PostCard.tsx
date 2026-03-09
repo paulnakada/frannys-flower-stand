@@ -12,13 +12,11 @@ import { theme } from '../theme';
 
 interface PostCardProps {
   post: Post;
-  isLiked: boolean;
-  onLike: (postId: string) => void;
   onPress: (postId: string) => void;
   onCommentPress: (postId: string) => void;
 }
 
-export function PostCard({ post, isLiked, onLike, onPress, onCommentPress }: PostCardProps) {
+export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
   const dateLabel = formatDate(post.createdAt);
 
   return (
@@ -53,19 +51,6 @@ export function PostCard({ post, isLiked, onLike, onPress, onCommentPress }: Pos
 
       {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onLike(post.id)}>
-          <Ionicons
-            name={isLiked ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isLiked ? theme.colors.accentDark : theme.colors.warmGray}
-          />
-          {post.likeCount > 0 && (
-            <Text style={[styles.actionCount, isLiked && styles.actionCountLiked]}>
-              {post.likeCount}
-            </Text>
-          )}
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.actionBtn} onPress={() => onCommentPress(post.id)}>
           <Ionicons name="chatbubble-outline" size={20} color={theme.colors.warmGray} />
           {post.commentCount > 0 && (
@@ -155,8 +140,5 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fonts.body,
     fontSize: theme.typography.sizes.sm,
     color: theme.colors.warmGray,
-  },
-  actionCountLiked: {
-    color: theme.colors.accentDark,
   },
 });

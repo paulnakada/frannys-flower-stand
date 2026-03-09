@@ -33,20 +33,10 @@ export interface Post {
   text: string;
   imageUrl?: string;
   imageAspectRatio?: number;
-  likeCount: number;
   commentCount: number; // approved only
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
-}
-
-// ─── Like ────────────────────────────────────────────────────────────────────
-
-export interface Like {
-  id: string;
-  postId: string;
-  deviceId: string; // device UUID stored in AsyncStorage
-  createdAt: Date;
 }
 
 // ─── Comment ─────────────────────────────────────────────────────────────────

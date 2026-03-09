@@ -25,7 +25,7 @@ export default function FeedScreen() {
   const feedNav = useNavigation<FeedNavProp>();
   const rootNav = useNavigation<RootNavProp>();
   const { user } = useAuth();
-  const { posts, likedPostIds, isLoading, isLoadingMore, hasMore, loadMore, refresh, handleToggleLike } = useFeed();
+  const { posts, isLoading, isLoadingMore, hasMore, loadMore, refresh } = useFeed();
 
   const handlePostPress = (postId: string) => feedNav.navigate('PostDetail', { postId });
 
@@ -46,8 +46,6 @@ export default function FeedScreen() {
       renderItem={({ item }) => (
         <PostCard
           post={item}
-          isLiked={likedPostIds.has(item.id)}
-          onLike={handleToggleLike}
           onPress={handlePostPress}
           onCommentPress={handlePostPress}
         />
