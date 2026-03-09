@@ -122,17 +122,19 @@ export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
       {/* Inline comment previews */}
       {visibleComments.length > 0 && (
         <View style={styles.commentsSection}>
-          {visibleComments.map((comment, index) => (
+          {visibleComments.map(comment => (
             <View key={comment.id} style={styles.commentRow}>
               <Text style={styles.commentText} numberOfLines={2}>
                 <Text style={styles.commentAuthor}>{comment.authorName} </Text>
                 {comment.text}
-                {hasMore && index === PREVIEW_LIMIT - 1 && (
-                  <Text style={styles.moreLink} onPress={handleShowMore}> more</Text>
-                )}
               </Text>
             </View>
           ))}
+          {hasMore && (
+            <TouchableOpacity onPress={handleShowMore} style={styles.moreLinkRow}>
+              <Text style={styles.moreLink}>more</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -238,6 +240,9 @@ const styles = StyleSheet.create({
     color: theme.colors.charcoal,
     lineHeight: 20,
     flex: 1,
+  },
+  moreLinkRow: {
+    marginTop: theme.spacing.xs,
   },
   moreLink: {
     fontFamily: theme.typography.fonts.body,
