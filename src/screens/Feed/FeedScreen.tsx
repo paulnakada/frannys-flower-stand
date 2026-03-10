@@ -57,6 +57,7 @@ export default function FeedScreen() {
             <Text style={styles.headerText}>Today's Bouquets</Text>
             <Ionicons name="flower" size={20} color={theme.colors.accent} />
           </View>
+          <Text style={styles.headerSubtitle}>Get notified when Franny's Flower Stand will be open!</Text>
           {user?.role !== 'admin' && (
             <TouchableOpacity style={styles.loginBtn} onPress={() => rootNav.navigate('AdminLogin')}>
               <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.warmGray} />
@@ -100,15 +101,13 @@ const styles = StyleSheet.create({
   content: { paddingTop: theme.spacing.sm, paddingBottom: theme.spacing.xxxl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.cream },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
   headerTitle: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -118,6 +117,13 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fonts.displayItalic,
     fontSize: theme.typography.sizes.xl,
     color: theme.colors.charcoal,
+  },
+  headerSubtitle: {
+    fontFamily: theme.typography.fonts.body,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.warmGray,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   loginBtn: {
     position: 'absolute',
