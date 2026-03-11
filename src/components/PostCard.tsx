@@ -101,10 +101,7 @@ export function PostCard({ post, onPress, onCommentPress }: PostCardProps) {
       {post.imageUrl && (
         <Image
           source={{ uri: post.imageUrl }}
-          style={[
-            styles.image,
-            post.imageAspectRatio ? { aspectRatio: post.imageAspectRatio } : undefined,
-          ]}
+          style={[styles.image, { aspectRatio: post.imageAspectRatio ?? 4 / 3 }]}
           resizeMode="cover"
         />
       )}
@@ -199,7 +196,6 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 280,
     backgroundColor: theme.colors.sand,
   },
   actions: {
