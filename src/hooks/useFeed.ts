@@ -21,7 +21,7 @@ function docToPost(d: QueryDocumentSnapshot<DocumentData>): Post {
   return {
     id: d.id,
     authorId: data.authorId ?? '',
-    authorName: data.authorName ?? 'Franny',
+    authorName: "Franny's Flower Stand",
     text: data.text ?? '',
     imageUrl: data.imageUrl,
     imageAspectRatio: data.imageAspectRatio,
