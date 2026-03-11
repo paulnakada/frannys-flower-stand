@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFeed } from '../../hooks/useFeed';
 import { PostCard } from '../../components/PostCard';
@@ -26,6 +27,7 @@ export default function FeedScreen() {
   const rootNav = useNavigation<RootNavProp>();
   const { user } = useAuth();
   const { posts, isLoading, isLoadingMore, hasMore, loadMore, refresh } = useFeed();
+  const insets = useSafeAreaInsets();
 
   const handlePostPress = (postId: string) => feedNav.navigate('PostDetail', { postId });
 
@@ -51,7 +53,7 @@ export default function FeedScreen() {
         />
       )}
       ListHeaderComponent={
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + theme.spacing.sm }]}>
           <View style={styles.headerTitle}>
             <Ionicons name="flower" size={20} color={theme.colors.accent} />
             <Text style={styles.headerText}>Franny's Flower Stand</Text>
@@ -104,7 +106,6 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
